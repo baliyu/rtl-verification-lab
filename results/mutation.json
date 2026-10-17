@@ -1,5 +1,7 @@
 {
   "expected_survivors": [
+    "fifo-binary-pointers-cross-plain-sim",
+    "fifo-one-flop-synchroniser",
     "rx-synchroniser-removed"
   ],
   "mutants": [
@@ -174,162 +176,312 @@
       "result": "killed"
     },
     {
-      "id": "spi-first-bit-wrong",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-first-bit-wrong",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-cpha-ignored",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-cpha-ignored",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-cpol-ignored",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-cpol-ignored",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-cs-released-early",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-cs-released-early",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-half-period-short",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-half-period-short",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-sampling-edge-swapped",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-sampling-edge-swapped",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-rx-data-never-updated",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-rx-data-never-updated",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-done-never-ends",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-done-never-ends",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-live-data-on-first-edges",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-live-data-on-first-edges",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-live-data-on-second-edges",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-live-data-on-second-edges",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-live-cpha-for-sampling",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-live-cpha-for-sampling",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-reset-ignored",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-reset-ignored",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-mosi-left-high",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-mosi-left-high",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-one-bit-short",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-one-bit-short",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
-      "id": "spi-busy-drops-early",
-      "language": "verilog",
-      "result": "killed"
-    },
-    {
-      "id": "spi-busy-drops-early",
-      "language": "vhdl",
-      "result": "killed"
-    },
-    {
       "id": "rx-synchroniser-removed",
       "language": "verilog",
       "result": "survived"
     },
     {
       "id": "rx-synchroniser-removed",
+      "language": "vhdl",
+      "result": "survived"
+    },
+    {
+      "id": "spi-first-bit-wrong",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-first-bit-wrong",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-cpha-ignored",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-cpha-ignored",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-cpol-ignored",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-cpol-ignored",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-cs-released-early",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-cs-released-early",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-half-period-short",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-half-period-short",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-sampling-edge-swapped",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-sampling-edge-swapped",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-rx-data-never-updated",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-rx-data-never-updated",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-done-never-ends",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-done-never-ends",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-live-data-on-first-edges",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-live-data-on-first-edges",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-live-data-on-second-edges",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-live-data-on-second-edges",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-live-cpha-for-sampling",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-live-cpha-for-sampling",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-reset-ignored",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-reset-ignored",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-mosi-left-high",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-mosi-left-high",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-one-bit-short",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-one-bit-short",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "spi-busy-drops-early",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "spi-busy-drops-early",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-full-never-raised",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-full-never-raised",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-empty-never-raised",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-empty-never-raised",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-full-compare-not-inverted",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-full-compare-not-inverted",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-empty-uses-current-pointer",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-empty-uses-current-pointer",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-full-uses-current-pointer",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-full-uses-current-pointer",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-binary-pointers-cross",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-binary-pointers-cross",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-binary-pointers-cross-plain-sim",
+      "language": "verilog",
+      "result": "survived"
+    },
+    {
+      "id": "fifo-binary-pointers-cross-plain-sim",
+      "language": "vhdl",
+      "result": "survived"
+    },
+    {
+      "id": "fifo-writes-when-full",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-writes-when-full",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-read-pointer-moves-when-empty",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-read-pointer-moves-when-empty",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-write-pointer-moves-when-full",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-write-pointer-moves-when-full",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-reads-one-word-ahead",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-reads-one-word-ahead",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-write-reset-ignored",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-write-reset-ignored",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-read-reset-ignored",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-read-reset-ignored",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-ram-written-at-the-gray-address",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-ram-written-at-the-gray-address",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "fifo-one-flop-synchroniser",
+      "language": "verilog",
+      "result": "survived"
+    },
+    {
+      "id": "fifo-one-flop-synchroniser",
       "language": "vhdl",
       "result": "survived"
     }

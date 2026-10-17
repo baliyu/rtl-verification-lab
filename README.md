@@ -8,7 +8,7 @@ The point is verification, not just design: the tests check behaviour to the clo
 ## Status
 - [x] **UART**: transmitter, receiver and a loopback top level (8N1)
 - [x] **SPI master**: all four modes, any word length from 2 to 64 bits, one chip select
-- [ ] Asynchronous FIFO that crosses between two clocks (planned)
+- [x] **Asynchronous FIFO**: a queue between two unrelated clocks, with Gray-coded pointers and two-flop synchronisers
 
 ## Why one testbench for two languages
 A test written in Python looks at a circuit only through its ports, so it does not care whether the circuit is Verilog or VHDL. Running the same tests on both gives a direct check that the two implementations behave identically, and any difference shows up as a failing test in one language only. Verilog runs on Icarus Verilog, VHDL on GHDL.
@@ -35,13 +35,25 @@ A test written in Python looks at a circuit only through its ports, so it does n
 
 The device on the other end of the wires in the tests is a small SPI slave written from the **published table of the four modes** (which edge a device samples on, which edge it changes its output on) and not from the circuit's own logic, so a misreading of the standard cannot hide in both.
 
-Circuits: `rtl/verilog/` (Verilog-2001) and `rtl/vhdl/` (VHDL-93). Tests: `tests/uart/` and `tests/spi/`.
+## The asynchronous FIFO
+| | |
+|---|---|
+| Size | `2 ** ADDR_WIDTH` words of `DATA_WIDTH` bits (`ADDR_WIDTH` at least 2) |
+| Write side (`wclk`) | a word is stored on the clock edge where `w_en` is 1 and `w_full` is 0; `w_en` while full is ignored |
+| Read side (`rclk`) | "first word fall through": while `r_empty` is 0, `r_data` already shows the oldest word, which is removed on the edge where `r_en` is 1 and `r_empty` is 0; `r_en` while empty is ignored |
+| Flags | cautious: `w_full` can rise a little early and fall a little late, `r_empty` can fall a little late, but a write is never accepted into a full FIFO and a read never returns a word that is not there |
+| Crossing | each side keeps a binary pointer for the memory address and a **Gray-coded** copy that goes through a two-flop synchroniser (`sync_2ff`) to the other clock; only one bit of a Gray code changes at a time |
+| Reset | one synchronous reset per clock domain; assert both together for a few cycles of the slower clock and do not read or write until both are released |
+
+**How a clock-domain crossing is tested in simulation.** The two clocks are unrelated in speed and offset (the runs below use several ratios, from 1:3 to 3:1 and an equal-speed pair with a phase offset). A scoreboard in the testbench tracks every word in flight, so a lost, repeated, reordered or invented word fails at once, and coverage checks confirm that the traffic really did fill the FIFO and empty it. Each setting is also run with a **nasty synchroniser** instead of the real `sync_2ff` (`tests/fifo/models/`): a stand-in with the same ports that gives every bit of a changing pointer its own random arrival time, so a bus with several changing bits can be seen as a mixture of old and new values for a few nanoseconds. The correct design, with Gray code, passes with both. The same design with plain binary pointers passes an ordinary simulation completely, and **is caught only by the nasty synchroniser**, and only when the receiving clock is fast enough for the mixture to last several clocks. So a clean ordinary simulation does not show that a clock-domain crossing is safe.
+
+Circuits: `rtl/verilog/` (Verilog-2001) and `rtl/vhdl/` (VHDL-93). Tests: `tests/uart/`, `tests/spi/` and `tests/fifo/`.
 
 <!-- results:start -->
 
 ### Results
 
-Every block is built and run in both languages at each of its settings: **18 simulator runs** per push. The tests are the same Python for Verilog and VHDL.
+Every block is built and run in both languages at each of its settings: **30 simulator runs** per push. The tests are the same Python for Verilog and VHDL.
 
 **`uart_tx`**: 5 tests, run at `CLKS_PER_BIT=8`; `CLKS_PER_BIT=32`
 
@@ -79,9 +91,21 @@ Every block is built and run in both languages at each of its settings: **18 sim
 - `rx_data_holds_its_value_after_the_transfer`: rx_data keeps the received word, unchanged, for as long as the master stays idle.
 - `reset_in_the_middle_of_a_transfer_returns_to_idle`: Reset during a transfer puts cs_n high, mosi low, busy low and sclk at the idle level at once, gives no done pulse, and the next transfer is correct.
 
+**`async_fifo`**: 9 tests, run at `plain synchroniser, 8 bits x 8 words, write clock 10 ns, read clock 10 ns (offset 3 ns)`; `plain synchroniser, 5 bits x 4 words, write clock 7 ns, read clock 23 ns (offset 0 ns)`; `plain synchroniser, 16 bits x 16 words, write clock 23 ns, read clock 7 ns (offset 5 ns)`; `nasty synchroniser, 8 bits x 8 words, write clock 10 ns, read clock 3 ns (offset 1 ns)`; `nasty synchroniser, 8 bits x 8 words, write clock 3 ns, read clock 10 ns (offset 1 ns)`; `nasty synchroniser, 5 bits x 4 words, write clock 13 ns, read clock 17 ns (offset 2 ns)`
+
+- `flags_after_reset`: After reset the FIFO reports empty and not full, and keeps doing so while nothing happens.
+- `fill_to_full_then_drain_in_order`: Writing with nothing reading fills the FIFO to exactly DEPTH words and then w_full holds it there however many more writes are attempted; draining gives back the first DEPTH words in order, and the flags end exact.
+- `reads_while_empty_and_writes_while_full_do_nothing`: Read attempts on an empty FIFO change nothing (the words written afterwards come out in order), and a write attempted while full does not overwrite anything.
+- `random_traffic_in_four_patterns_keeps_every_word_in_order`: Four traffic patterns in a row (writer faster, reader faster, balanced, and alternating bursts), at least 30 times the FIFO depth in words: nothing is lost, repeated or reordered, and the traffic really did fill the FIFO and empty it.
+- `a_reader_asking_every_clock_never_gets_a_word_that_is_not_there`: A reader that asks on every read clock while a writer adds a word only now and then (so the FIFO is nearly always empty, and every write is a pointer change the reader must judge correctly) never gets a word that is not there.
+- `a_writer_asking_every_clock_never_overruns_a_slow_reader`: A writer that asks on every write clock while a reader takes a word only now and then (so the FIFO is nearly always full, and every read is a pointer change the writer must judge correctly) never overflows it.
+- `every_data_bit_carries_a_one_and_a_zero`: Words with a single bit set, a single bit clear, all zeros, all ones and alternating bits all come back unchanged, so every bit of the data path is used both ways.
+- `flags_follow_within_a_few_clocks`: One word written into an empty FIFO makes r_empty go low within 5 read clocks, and one word read from a full FIFO makes w_full go low within 5 write clocks.
+- `reset_in_the_middle_discards_the_contents`: Resetting both domains while words are stored (and traffic is running) leaves the FIFO empty, not full, and with no stale word: only words written afterwards come out.
+
 ### Breaking the circuits on purpose
 
-`tools/mutate.py` makes 33 realistic bugs, one at a time, in each language, and runs the block's tests against each broken circuit. Of 66 broken circuits, **64 were caught** by at least one failing test and **2 survived**.
+`tools/mutate.py` makes 48 realistic bugs, one at a time, in each language, and runs the block's tests against each broken circuit. Of 96 broken circuits, **90 were caught** by at least one failing test and **6 survived**.
 
 | Block | Bug | Verilog | VHDL |
 |---|---|---|---|
@@ -102,6 +126,7 @@ Every block is built and run in both languages at each of its settings: **18 sim
 | `uart_rx` | only seven data bits are collected | caught | caught |
 | `uart_rx` | each data bit is sampled one clock earlier than the one before (a creeping bit time) | caught | caught |
 | `uart_rx` | reset does nothing in the receiver | caught | caught |
+| `uart_rx` | the two-flop input synchroniser is cut to one flop | **survived** | **survived** |
 | `spi_master` | the first bit sent in modes 0 and 2 is bit 0 instead of the top bit | caught | caught |
 | `spi_master` | cpha is ignored: every transfer uses mode 0 or 2 timing | caught | caught |
 | `spi_master` | cpol is ignored: sclk always idles low | caught | caught |
@@ -117,9 +142,27 @@ Every block is built and run in both languages at each of its settings: **18 sim
 | `spi_master` | mosi stays at the last bit after the transfer instead of returning to low | caught | caught |
 | `spi_master` | the transfer stops one bit early | caught | caught |
 | `spi_master` | busy goes low at the last sclk edge, before the transfer is over | caught | caught |
-| `uart_rx` | the two-flop input synchroniser is cut to one flop | **survived** | **survived** |
+| `async_fifo` | w_full never goes high, so the FIFO overflows | caught | caught |
+| `async_fifo` | r_empty never goes high, so the FIFO underflows | caught | caught |
+| `async_fifo` | the full test does not invert the top two bits of the synchronised read pointer | caught | caught |
+| `async_fifo` | the empty test uses the read pointer as it is now, not as it will be after this clock | caught | caught |
+| `async_fifo` | the full test uses the write pointer as it is now, not as it will be after this clock | caught | caught |
+| `async_fifo` | plain binary pointers cross between the clocks instead of Gray-coded ones (several bits change at once) | caught | caught |
+| `async_fifo` | the same binary-pointer bug, simulated with an ordinary two-flop synchroniser | **survived** | **survived** |
+| `async_fifo` | a word is stored even when the FIFO is full, overwriting unread data | caught | caught |
+| `async_fifo` | the read pointer advances on a read of an empty FIFO | caught | caught |
+| `async_fifo` | the write pointer advances on a write to a full FIFO | caught | caught |
+| `async_fifo` | r_data shows the word after the oldest one | caught | caught |
+| `async_fifo` | reset does nothing in the write clock domain | caught | caught |
+| `async_fifo` | reset does nothing in the read clock domain | caught | caught |
+| `async_fifo` | the RAM is written at the Gray-coded address but read at the binary one | caught | caught |
+| `async_fifo` | the two-flop synchroniser is cut to one flop | **survived** | **survived** |
 
 The surviving bug ("the two-flop input synchroniser is cut to one flop") is **expected** to survive, because it cannot be detected in RTL simulation: a simulator has no metastability, so a missing synchroniser only shows up in clock-domain-crossing analysis or on hardware.
+
+The surviving bug ("the same binary-pointer bug, simulated with an ordinary two-flop synchroniser") is **expected** to survive, because it cannot be detected in RTL simulation: in a zero-delay simulation every bit of a pointer reaches the other clock at the same moment, so a binary pointer works; the bug only appears when the wires are skewed (the nasty synchroniser above) or on real hardware.
+
+The surviving bug ("the two-flop synchroniser is cut to one flop") is **expected** to survive, because it cannot be detected in RTL simulation: a simulator has no metastability, so it cannot tell one flop from two; this needs a clock-domain-crossing checker or an analysis of how long the first flop takes to settle.
 
 <!-- results:end -->
 
@@ -137,6 +180,7 @@ python tools/make_report.py                   # rewrite the results block above 
 ## Limits (what this does not show)
 - **Simulation of the RTL only.** The circuits were not synthesised, placed or timed, and never ran on an FPGA. A circuit that passes simulation can still fail on hardware, for example because of timing or a metastable input; simulators do not model that.
 - **My reading of the UART.** One stop bit, no parity, no 9-bit mode, one sample per bit. The receiver was measured to cope with a sender one clock per bit fast or slow at 32 clocks per bit (about 3 %); that is a measurement of this design, not a general claim.
+- **My reading of the FIFO.** One write port and one read port, first-word-fall-through only, no almost-full or level outputs, and both resets applied together. The nasty synchroniser models skew between the wires of a bus (a fixed 8 ns window, one random arrival time per changing bit), not the physics of metastability: it is evidence, not a proof, and tools for formal clock-domain-crossing analysis exist for that. A one-flop synchroniser cannot be told from a two-flop one in any RTL simulation, so that bug is listed as one that survives.
 - **My reading of SPI.** A master only: one chip select, most-significant bit first, no clock stretching, no multi-master. `mosi` and `sclk` change on the same clock edge in the RTL, so on real hardware the output timing and the slave's setup and hold times would need separate attention.
 - **The mutation list is hand-picked.** It is a set of plausible bugs, not a proof that the tests catch every bug.
 - **Tested versions:** Icarus Verilog 12.0 and GHDL 4.1.0 (LLVM backend) on Ubuntu 24.04, with cocotb 2.1.0. Other versions were not tried.

@@ -57,11 +57,11 @@ def render():
             f"`tools/mutate.py` makes {len(MUTATIONS)} realistic bugs, one at a time, in each language, and runs the block's tests against each broken circuit. "
             f"Of {total} broken circuits, **{killed} were caught** by at least one failing test and **{survived} survived**.", "",
             "| Block | Bug | Verilog | VHDL |", "|---|---|---|---|"]
-    for mid, what, block, _, _, undetectable in MUTATIONS:
+    for mid, what, block, _, _, undetectable, *_ in MUTATIONS:
         r = by_id.get(mid, {})
         cell = lambda lang: {"killed": "caught", "survived": "**survived**", "error": "**error**"}.get(r.get(lang), "not run")   # noqa: E731
         out.append(f"| `{block}` | {what} | {cell('verilog')} | {cell('vhdl')} |")
-    for mid, what, _, _, _, undetectable in MUTATIONS:
+    for mid, what, _, _, _, undetectable, *_ in MUTATIONS:
         if undetectable:
             out += ["", f"The surviving bug (\"{what}\") is **expected** to survive, because it cannot be detected in RTL simulation: {undetectable}."]
     out += ["", END]

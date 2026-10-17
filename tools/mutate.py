@@ -25,7 +25,8 @@ sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "tests" / "uart"))
 from runner import BLOCKS, describe, run  # noqa: E402
 
-# id, what is broken, block whose tests are run, (file, old text, new text, which occurrence) for Verilog and for VHDL, expectation
+# id, what is broken, block whose tests are run, the change for Verilog and for VHDL, expectation (None, or why it cannot be detected), and optionally settings that
+# replace the block's mutation setting. A change is (file, old text, new text, which occurrence), or a list of such changes when one bug needs several edits.
 MUTATIONS = [
     ("tx-start-bit-high", "the start bit is sent as 1 instead of 0", "uart_tx",
      ("uart_tx.v", "txd     <= 1'b0;", "txd     <= 1'b1;", 1), ("uart_tx.vhd", "txd_r   <= '0';", "txd_r   <= '1';", 1), None),
@@ -69,6 +70,9 @@ MUTATIONS = [
      ("uart_rx.vhd", "if clk_cnt = CLKS_PER_BIT - 1 then", "if clk_cnt = CLKS_PER_BIT - 2 then", 1), None),
     ("rx-reset-ignored", "reset does nothing in the receiver", "uart_rx",
      ("uart_rx.v", "if (rst) begin", "if (1'b0) begin", 1), ("uart_rx.vhd", "if rst = '1' then", "if false then", 1), None),
+    ("rx-synchroniser-removed", "the two-flop input synchroniser is cut to one flop", "uart_rx",
+     ("uart_rx.v", "rxd_s <= rxd_m;", "rxd_s <= rxd;", 1), ("uart_rx.vhd", "rxd_s <= rxd_m;", "rxd_s <= rxd;", 1),
+     "a simulator has no metastability, so a missing synchroniser only shows up in clock-domain-crossing analysis or on hardware"),
     ("spi-first-bit-wrong", "the first bit sent in modes 0 and 2 is bit 0 instead of the top bit", "spi_master",
      ("spi_master.v", "mosi     <= cpha ? 1'b0 : tx_data[WIDTH-1];", "mosi     <= cpha ? 1'b0 : tx_data[0];", 1),
      ("spi_master.vhd", "mosi_r <= tx_data(WIDTH - 1);", "mosi_r <= tx_data(0);", 1), None),
@@ -106,9 +110,50 @@ MUTATIONS = [
      ("spi_master.vhd", "if edge_cnt = 2 * WIDTH - 1 then", "if edge_cnt = 2 * WIDTH - 3 then", 1), None),
     ("spi-busy-drops-early", "busy goes low at the last sclk edge, before the transfer is over", "spi_master",
      ("spi_master.v", "state <= S_HOLD;", "state <= S_HOLD; busy <= 1'b0;", 1), ("spi_master.vhd", "state <= S_HOLD;", "state <= S_HOLD; busy_r <= '0';", 1), None),
-    ("rx-synchroniser-removed", "the two-flop input synchroniser is cut to one flop", "uart_rx",
-     ("uart_rx.v", "rxd_s <= rxd_m;", "rxd_s <= rxd;", 1), ("uart_rx.vhd", "rxd_s <= rxd_m;", "rxd_s <= rxd;", 1),
-     "a simulator has no metastability, so a missing synchroniser only shows up in clock-domain-crossing analysis or on hardware"),
+    ("fifo-full-never-raised", "w_full never goes high, so the FIFO overflows", "async_fifo",
+     ("async_fifo.v", "w_full <= full_next;", "w_full <= 1'b0;", 1), ("async_fifo.vhd", "wfull_r  <= full_next;", "wfull_r  <= '0';", 1), None),
+    ("fifo-empty-never-raised", "r_empty never goes high, so the FIFO underflows", "async_fifo",
+     ("async_fifo.v", "r_empty <= empty_next;", "r_empty <= 1'b0;", 1), ("async_fifo.vhd", "rempty_r <= empty_next;", "rempty_r <= '0';", 1), None),
+    ("fifo-full-compare-not-inverted", "the full test does not invert the top two bits of the synchronised read pointer", "async_fifo",
+     ("async_fifo.v", "{~wq_rptr[ADDR_WIDTH:ADDR_WIDTH-1], wq_rptr[ADDR_WIDTH-2:0]}", "wq_rptr", 1),
+     ("async_fifo.vhd", "((not wq_rptr(ADDR_WIDTH downto ADDR_WIDTH - 1)) & wq_rptr(ADDR_WIDTH - 2 downto 0))", "wq_rptr", 1), None),
+    ("fifo-empty-uses-current-pointer", "the empty test uses the read pointer as it is now, not as it will be after this clock", "async_fifo",
+     ("async_fifo.v", "(rgray_next == rq_wptr)", "(rptr == rq_wptr)", 1), ("async_fifo.vhd", "std_logic_vector(rgray_next) = rq_wptr", "std_logic_vector(rptr) = rq_wptr", 1), None),
+    ("fifo-full-uses-current-pointer", "the full test uses the write pointer as it is now, not as it will be after this clock", "async_fifo",
+     ("async_fifo.v", "(wgray_next == {", "(wptr == {", 1), ("async_fifo.vhd", "std_logic_vector(wgray_next) = ((not", "std_logic_vector(wptr) = ((not", 1), None),
+    ("fifo-binary-pointers-cross", "plain binary pointers cross between the clocks instead of Gray-coded ones (several bits change at once)", "async_fifo",
+     [("async_fifo.v", "(wbin_next >> 1) ^ wbin_next", "wbin_next", 1), ("async_fifo.v", "(rbin_next >> 1) ^ rbin_next", "rbin_next", 1),
+      ("async_fifo.v", "{~wq_rptr[ADDR_WIDTH:ADDR_WIDTH-1], wq_rptr[ADDR_WIDTH-2:0]}", "{~wq_rptr[ADDR_WIDTH], wq_rptr[ADDR_WIDTH-1:0]}", 1)],
+     [("async_fifo.vhd", "(wbin_next srl 1) xor wbin_next", "wbin_next", 1), ("async_fifo.vhd", "(rbin_next srl 1) xor rbin_next", "rbin_next", 1),
+      ("async_fifo.vhd", "((not wq_rptr(ADDR_WIDTH downto ADDR_WIDTH - 1)) & wq_rptr(ADDR_WIDTH - 2 downto 0))", "((not wq_rptr(ADDR_WIDTH downto ADDR_WIDTH)) & wq_rptr(ADDR_WIDTH - 1 downto 0))", 1)],
+     None),
+    ("fifo-binary-pointers-cross-plain-sim", "the same binary-pointer bug, simulated with an ordinary two-flop synchroniser", "async_fifo",
+     [("async_fifo.v", "(wbin_next >> 1) ^ wbin_next", "wbin_next", 1), ("async_fifo.v", "(rbin_next >> 1) ^ rbin_next", "rbin_next", 1),
+      ("async_fifo.v", "{~wq_rptr[ADDR_WIDTH:ADDR_WIDTH-1], wq_rptr[ADDR_WIDTH-2:0]}", "{~wq_rptr[ADDR_WIDTH], wq_rptr[ADDR_WIDTH-1:0]}", 1)],
+     [("async_fifo.vhd", "(wbin_next srl 1) xor wbin_next", "wbin_next", 1), ("async_fifo.vhd", "(rbin_next srl 1) xor rbin_next", "rbin_next", 1),
+      ("async_fifo.vhd", "((not wq_rptr(ADDR_WIDTH downto ADDR_WIDTH - 1)) & wq_rptr(ADDR_WIDTH - 2 downto 0))", "((not wq_rptr(ADDR_WIDTH downto ADDR_WIDTH)) & wq_rptr(ADDR_WIDTH - 1 downto 0))", 1)],
+     "in a zero-delay simulation every bit of a pointer reaches the other clock at the same moment, so a binary pointer works; the bug only appears when the wires are skewed (the nasty synchroniser above) or on real hardware",
+     {"SYNC": "rtl"}),
+    ("fifo-writes-when-full", "a word is stored even when the FIFO is full, overwriting unread data", "async_fifo",
+     ("async_fifo.v", "if (w_push) mem[", "if (w_en) mem[", 1), ("async_fifo.vhd", "if w_push = '1' then", "if w_en = '1' then", 1), None),
+    ("fifo-read-pointer-moves-when-empty", "the read pointer advances on a read of an empty FIFO", "async_fifo",
+     ("async_fifo.v", "r_en && !r_empty;", "r_en;", 1), ("async_fifo.vhd", "r_pop      <= r_en and not rempty_r;", "r_pop      <= r_en;", 1), None),
+    ("fifo-write-pointer-moves-when-full", "the write pointer advances on a write to a full FIFO", "async_fifo",
+     ("async_fifo.v", "wbin + (w_push ? 1 : 0)", "wbin + (w_en ? 1 : 0)", 1), ("async_fifo.vhd", "wbin + 1 when w_push = '1' else wbin", "wbin + 1 when w_en = '1' else wbin", 1), None),
+    ("fifo-reads-one-word-ahead", "r_data shows the word after the oldest one", "async_fifo",
+     ("async_fifo.v", "assign r_data = mem[rbin[ADDR_WIDTH-1:0]];", "assign r_data = mem[rbin[ADDR_WIDTH-1:0] + 1'b1];", 1),
+     ("async_fifo.vhd", "r_data <= mem(to_integer(rbin(ADDR_WIDTH - 1 downto 0)));", "r_data <= mem((to_integer(rbin(ADDR_WIDTH - 1 downto 0)) + 1) mod DEPTH);", 1), None),
+    ("fifo-write-reset-ignored", "reset does nothing in the write clock domain", "async_fifo",
+     ("async_fifo.v", "if (wrst) begin", "if (1'b0) begin", 1), ("async_fifo.vhd", "if wrst = '1' then", "if false then", 1), None),
+    ("fifo-read-reset-ignored", "reset does nothing in the read clock domain", "async_fifo",
+     ("async_fifo.v", "if (rrst) begin", "if (1'b0) begin", 1), ("async_fifo.vhd", "if rrst = '1' then", "if false then", 1), None),
+    ("fifo-ram-written-at-the-gray-address", "the RAM is written at the Gray-coded address but read at the binary one", "async_fifo",
+     ("async_fifo.v", "mem[wbin[ADDR_WIDTH-1:0]] <= w_data;", "mem[wptr[ADDR_WIDTH-1:0]] <= w_data;", 1),
+     ("async_fifo.vhd", "mem(to_integer(wbin(ADDR_WIDTH - 1 downto 0))) <= w_data;", "mem(to_integer(wptr(ADDR_WIDTH - 1 downto 0))) <= w_data;", 1), None),
+    ("fifo-one-flop-synchroniser", "the two-flop synchroniser is cut to one flop", "async_fifo",
+     ("sync_2ff.v", "s2 <= s1;", "s2 <= d;", 1), ("sync_2ff.vhd", "s2 <= s1;", "s2 <= d;", 1),
+     "a simulator has no metastability, so it cannot tell one flop from two; this needs a clock-domain-crossing checker or an analysis of how long the first flop takes to settle",
+     {"SYNC": "rtl"}),
 ]
 
 
@@ -124,17 +169,18 @@ def apply(text, old, new, nth):
 
 def run_one(task):
     """Build one mutated circuit and run its block's tests. Returns (id, language, status text); a worker process runs this."""
-    mid, lang, block, fname, old, new, nth, undetectable = task
+    mid, lang, block, edits, undetectable, override = task
     with tempfile.TemporaryDirectory() as tmp:
         rtl = Path(tmp) / "rtl"
         shutil.copytree(ROOT / "rtl" / lang, rtl)
-        text = (rtl / fname).read_text(encoding="utf-8")
-        mutated = apply(text, old, new, nth)
-        if mutated is None:
-            return mid, lang, "ERROR: the text to change was not found"
-        (rtl / fname).write_text(mutated, encoding="utf-8")
+        for fname, old, new, nth in edits:
+            mutated = apply((rtl / fname).read_text(encoding="utf-8"), old, new, nth)
+            if mutated is None:
+                return mid, lang, "ERROR: the text to change was not found"
+            (rtl / fname).write_text(mutated, encoding="utf-8")
+        config = {**BLOCKS[block]["mutation_config"], **override}
         try:
-            ran, failed = run(lang, block, BLOCKS[block]["mutation_config"], Path(tmp) / "work", rtl_dir=rtl)
+            ran, failed = run(lang, block, config, Path(tmp) / "work", rtl_dir=rtl)
         except Exception as e:                                   # noqa: BLE001
             return mid, lang, f"ERROR: the mutated circuit does not build or run ({type(e).__name__})"
         status = f"killed by {len(failed)} of {ran} tests" if failed else "SURVIVED"
@@ -151,19 +197,19 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1), help="how many broken circuits to simulate at the same time (default: up to 4)")
     a = ap.parse_args(argv)
     if a.list:
-        for mid, what, block, _, _, expect in MUTATIONS:
-            print(f"{mid:30} {block:10} {what}" + ("   [expected to survive]" if expect else ""))
+        for mid, what, block, _, _, expect, *_ in MUTATIONS:
+            print(f"{mid:38} {block:10} {what}" + ("   [expected to survive]" if expect else ""))
         return 0
     chosen = [m for m in MUTATIONS if not a.blocks or m[2] in a.blocks]
-    tasks = [(mid, lang, block, *spec, undetectable) for mid, what, block, verilog, vhdl, undetectable in chosen
-             for lang, spec in (("verilog", verilog), ("vhdl", vhdl))]
+    tasks = [(m[0], lang, m[2], spec if isinstance(spec, list) else [spec], m[5], m[6] if len(m) > 6 else {})
+             for m in chosen for lang, spec in (("verilog", m[3]), ("vhdl", m[4]))]
     expected_survivors = {m[0] for m in MUTATIONS if m[5]}
     results = {}
     with ProcessPoolExecutor(max_workers=max(1, a.jobs)) as pool:
         for mid, lang, status in pool.map(run_one, tasks):
             results[(mid, lang)] = status
             ok = (status.startswith("killed") and "expected to survive" not in status) or (mid in expected_survivors and status == "SURVIVED")
-            print(f"{'ok     ' if ok else 'PROBLEM'} {mid:30} {lang:8} {status}", flush=True)
+            print(f"{'ok     ' if ok else 'PROBLEM'} {mid:38} {lang:8} {status}", flush=True)
     problems = [f"{mid} ({lang}): {status}" for (mid, lang), status in results.items()
                 if not ((status.startswith("killed") and "expected to survive" not in status) or (mid in expected_survivors and status == "SURVIVED"))]
     if not a.no_write:
