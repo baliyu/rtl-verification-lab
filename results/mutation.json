@@ -1,0 +1,187 @@
+{
+  "expected_survivors": [
+    "rx-synchroniser-removed"
+  ],
+  "mutants": [
+    {
+      "id": "tx-start-bit-high",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "tx-start-bit-high",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "tx-msb-first",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "tx-msb-first",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "tx-no-stop-bit",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "tx-no-stop-bit",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "tx-short-start-bit",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "tx-short-start-bit",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "tx-short-data-bits",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "tx-short-data-bits",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "tx-short-stop-bit",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "tx-short-stop-bit",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "tx-ready-too-early",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "tx-ready-too-early",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "tx-reset-leaves-line-low",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "tx-reset-leaves-line-low",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-samples-at-bit-edge",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "rx-samples-at-bit-edge",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-error-never-reported",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "rx-error-never-reported",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-msb-first",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "rx-msb-first",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-glitch-accepted",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "rx-glitch-accepted",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-valid-stays-high",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "rx-valid-stays-high",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-no-wait-after-error",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "rx-no-wait-after-error",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-seven-data-bits",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "rx-seven-data-bits",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-data-bits-sampled-early",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "rx-data-bits-sampled-early",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-reset-ignored",
+      "language": "verilog",
+      "result": "killed"
+    },
+    {
+      "id": "rx-reset-ignored",
+      "language": "vhdl",
+      "result": "killed"
+    },
+    {
+      "id": "rx-synchroniser-removed",
+      "language": "verilog",
+      "result": "survived"
+    },
+    {
+      "id": "rx-synchroniser-removed",
+      "language": "vhdl",
+      "result": "survived"
+    }
+  ]
+}
