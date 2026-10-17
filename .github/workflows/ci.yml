@@ -38,7 +38,7 @@ jobs:
       - name: Install cocotb and pytest
         run: python -m pip install -r requirements.txt
 
-      - name: Run every block in both languages at both bit rates
+      - name: Run every block in both languages at each of its settings
         run: python -m pytest -q
 
       - name: Break the circuits on purpose (every bug must be caught, except the one that cannot be)

@@ -1,13 +1,13 @@
-"""Run every UART block on both simulators at two bit rates: Verilog on Icarus Verilog, VHDL on GHDL, with the same Python tests."""
+"""Run every block on both simulators at each of its settings: Verilog on Icarus Verilog, VHDL on GHDL, with the same Python tests."""
 import pytest
 
-from runner import BIT_RATES, BLOCKS, run
+from runner import BLOCKS, describe, run
+
+CASES = [(lang, block, config) for lang in ("verilog", "vhdl") for block, spec in BLOCKS.items() for config in spec["configs"]]
 
 
-@pytest.mark.parametrize("clks", BIT_RATES)
-@pytest.mark.parametrize("block", list(BLOCKS))
-@pytest.mark.parametrize("lang", ["verilog", "vhdl"])
-def test_circuit(lang, block, clks, tmp_path):
-    ran, failed = run(lang, block, clks, tmp_path)
+@pytest.mark.parametrize("lang,block,config", CASES, ids=[f"{lang}-{block}-{describe(config).replace(' ', '-')}" for lang, block, config in CASES])
+def test_circuit(lang, block, config, tmp_path):
+    ran, failed = run(lang, block, config, tmp_path)
     assert ran > 0, "no tests ran"
-    assert not failed, f"{lang} {block} with {clks} clocks per bit: failed {failed}"
+    assert not failed, f"{lang} {block} with {describe(config)}: failed {failed}"
