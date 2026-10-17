@@ -1,0 +1,11 @@
+# rtl-verification-lab: simulation outputs
+__pycache__/
+*.pyc
+.pytest_cache/
+sim_build/
+build/
+results.xml
+*.vcd
+*.fst
+*.ghw
+work-obj*.cf
