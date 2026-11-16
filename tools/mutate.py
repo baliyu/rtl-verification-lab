@@ -72,7 +72,7 @@ MUTATIONS = [
      ("uart_rx.v", "if (rst) begin", "if (1'b0) begin", 1), ("uart_rx.vhd", "if rst = '1' then", "if false then", 1), None),
     ("rx-synchroniser-removed", "the two-flop input synchroniser is cut to one flop", "uart_rx",
      ("uart_rx.v", "rxd_s <= rxd_m;", "rxd_s <= rxd;", 1), ("uart_rx.vhd", "rxd_s <= rxd_m;", "rxd_s <= rxd;", 1),
-     "a simulator has no metastability, so a missing synchroniser only shows up in clock-domain-crossing analysis or on hardware"),
+     None),
     ("spi-first-bit-wrong", "the first bit sent in modes 0 and 2 is bit 0 instead of the top bit", "spi_master",
      ("spi_master.v", "mosi     <= cpha ? 1'b0 : tx_data[WIDTH-1];", "mosi     <= cpha ? 1'b0 : tx_data[0];", 1),
      ("spi_master.vhd", "mosi_r <= tx_data(WIDTH - 1);", "mosi_r <= tx_data(0);", 1), None),
@@ -132,7 +132,7 @@ MUTATIONS = [
       ("async_fifo.v", "{~wq_rptr[ADDR_WIDTH:ADDR_WIDTH-1], wq_rptr[ADDR_WIDTH-2:0]}", "{~wq_rptr[ADDR_WIDTH], wq_rptr[ADDR_WIDTH-1:0]}", 1)],
      [("async_fifo.vhd", "(wbin_next srl 1) xor wbin_next", "wbin_next", 1), ("async_fifo.vhd", "(rbin_next srl 1) xor rbin_next", "rbin_next", 1),
       ("async_fifo.vhd", "((not wq_rptr(ADDR_WIDTH downto ADDR_WIDTH - 1)) & wq_rptr(ADDR_WIDTH - 2 downto 0))", "((not wq_rptr(ADDR_WIDTH downto ADDR_WIDTH)) & wq_rptr(ADDR_WIDTH - 1 downto 0))", 1)],
-     "in a zero-delay simulation every bit of a pointer reaches the other clock at the same moment, so a binary pointer works; the bug only appears when the wires are skewed (the nasty synchroniser above) or on real hardware",
+     None,
      {"SYNC": "rtl"}),
     ("fifo-writes-when-full", "a word is stored even when the FIFO is full, overwriting unread data", "async_fifo",
      ("async_fifo.v", "if (w_push) mem[", "if (w_en) mem[", 1), ("async_fifo.vhd", "if w_push = '1' then", "if w_en = '1' then", 1), None),
@@ -152,7 +152,7 @@ MUTATIONS = [
      ("async_fifo.vhd", "mem(to_integer(wbin(ADDR_WIDTH - 1 downto 0))) <= w_data;", "mem(to_integer(wptr(ADDR_WIDTH - 1 downto 0))) <= w_data;", 1), None),
     ("fifo-one-flop-synchroniser", "the two-flop synchroniser is cut to one flop", "async_fifo",
      ("sync_2ff.v", "s2 <= s1;", "s2 <= d;", 1), ("sync_2ff.vhd", "s2 <= s1;", "s2 <= d;", 1),
-     "a simulator has no metastability, so it cannot tell one flop from two; this needs a clock-domain-crossing checker or an analysis of how long the first flop takes to settle",
+     None,
      {"SYNC": "rtl"}),
 ]
 

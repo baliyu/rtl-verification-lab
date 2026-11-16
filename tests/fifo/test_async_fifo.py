@@ -199,3 +199,62 @@ async def reset_in_the_middle_discards_the_contents(dut):
     assert not bench2.expected and bench2.read == bench2.written > 8
     await settle_and_check_flags(dut, bench2)
     bench2.stop()
+
+
+import os  # noqa: E402
+
+from cocotb.triggers import RisingEdge  # noqa: E402
+
+
+def _bits(x):
+    return bin(x).count("1")
+
+
+async def _latency_watch(clk, src, dst, p, q):
+    """On every rising edge of clk record the source pointer and the synchronised copy, both as they are just before the edge acts."""
+    while True:
+        await RisingEdge(clk)
+        p.append(int(src.value))
+        q.append(int(dst.value))
+
+
+async def _gray_watch(clk, sig, name, bad, moves):
+    last = int(sig.value)
+    while True:
+        await RisingEdge(clk)
+        now = int(sig.value)
+        if now != last:
+            moves.append(now)
+            if _bits(now ^ last) > 1:
+                bad.append(f"{name} went {last:#x} to {now:#x}: {_bits(now ^ last)} bits changed in one clock")
+        last = now
+
+
+@cocotb.test(skip=os.environ.get("SYNC") != "rtl", timeout_time=600, timeout_unit="us")
+async def pointer_crossing_takes_exactly_two_destination_clocks(dut):
+    """White-box, real synchroniser only: the pointer seen across the boundary equals the true pointer from exactly two destination-clock edges earlier, in both directions. A one-flop synchroniser gives one edge, and the skewed model is skipped because it breaks this rule on purpose."""
+    await setup(dut)
+    bench = Bench(dut, seed=11, p_write=0.5, p_read=0.5)
+    wp, wq, rp, rq = [], [], [], []
+    cocotb.start_soon(_latency_watch(dut.rclk, dut.wptr, dut.rq_wptr, wp, wq))
+    cocotb.start_soon(_latency_watch(dut.wclk, dut.rptr, dut.wq_rptr, rp, rq))
+    await wait_cycles(300)
+    bench.stop()
+    assert len(set(wp)) >= DEPTH and len(set(rp)) >= DEPTH, "the pointers barely moved, so the check proved nothing"
+    for name, p, q in (("write pointer seen by the read side", wp, wq), ("read pointer seen by the write side", rp, rq)):
+        for k in range(2, len(p)):
+            assert q[k] == p[k - 2], f"{name}: at edge {k} the synchronised value is {q[k]:#x}, the true pointer two edges earlier was {p[k - 2]:#x}"
+
+
+@cocotb.test(timeout_time=600, timeout_unit="us")
+async def pointers_that_cross_change_one_bit_per_clock(dut):
+    """White-box: the Gray-coded pointers that cross between clock domains never change more than one bit in a single clock. Plain binary pointers change several bits at once, which a safe synchroniser model cannot show."""
+    await setup(dut)
+    bench = Bench(dut, seed=12, p_write=0.6, p_read=0.6)
+    bad, wmoves, rmoves = [], [], []
+    cocotb.start_soon(_gray_watch(dut.wclk, dut.wptr, "wptr", bad, wmoves))
+    cocotb.start_soon(_gray_watch(dut.rclk, dut.rptr, "rptr", bad, rmoves))
+    await wait_cycles(300)
+    bench.stop()
+    assert len(wmoves) > 8 and len(rmoves) > 8, "the pointers barely moved, so the check proved nothing"
+    assert not bad, bad[0]
