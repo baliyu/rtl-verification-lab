@@ -1,9 +1,5 @@
 {
-  "expected_survivors": [
-    "fifo-binary-pointers-cross-plain-sim",
-    "fifo-one-flop-synchroniser",
-    "rx-synchroniser-removed"
-  ],
+  "expected_survivors": [],
   "mutants": [
     {
       "id": "tx-start-bit-high",
@@ -178,12 +174,12 @@
     {
       "id": "rx-synchroniser-removed",
       "language": "verilog",
-      "result": "survived"
+      "result": "killed"
     },
     {
       "id": "rx-synchroniser-removed",
       "language": "vhdl",
-      "result": "survived"
+      "result": "killed"
     },
     {
       "id": "spi-first-bit-wrong",
@@ -398,12 +394,12 @@
     {
       "id": "fifo-binary-pointers-cross-plain-sim",
       "language": "verilog",
-      "result": "survived"
+      "result": "killed"
     },
     {
       "id": "fifo-binary-pointers-cross-plain-sim",
       "language": "vhdl",
-      "result": "survived"
+      "result": "killed"
     },
     {
       "id": "fifo-writes-when-full",
@@ -478,12 +474,12 @@
     {
       "id": "fifo-one-flop-synchroniser",
       "language": "verilog",
-      "result": "survived"
+      "result": "killed"
     },
     {
       "id": "fifo-one-flop-synchroniser",
       "language": "vhdl",
-      "result": "survived"
+      "result": "killed"
     }
   ]
 }

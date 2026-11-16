@@ -63,7 +63,7 @@ Every block is built and run in both languages at each of its settings: **30 sim
 - `a_valid_pulse_while_busy_is_ignored`: A tx_valid pulse in the middle of a frame (with different data) neither corrupts that frame nor starts another.
 - `reset_in_the_middle_of_a_frame_returns_to_idle`: Reset during a frame puts the line back high and ready at once, and the next frame is still exact.
 
-**`uart_rx`**: 9 tests, run at `CLKS_PER_BIT=8`; `CLKS_PER_BIT=32`
+**`uart_rx`**: 10 tests, run at `CLKS_PER_BIT=8`; `CLKS_PER_BIT=32`
 
 - `quiet_after_reset`: With the line idle, rx_valid and rx_error stay low.
 - `every_byte_value_is_received_inside_its_stop_bit`: All 256 byte values arrive intact as a single one-cycle rx_valid pulse that falls inside the frame's stop bit, with no error.
@@ -74,6 +74,7 @@ Every block is built and run in both languages at each of its settings: **30 sim
 - `reset_in_the_middle_of_a_frame_abandons_it`: Reset during a frame discards it (no byte, no error) and the receiver works normally afterwards.
 - `tolerates_a_bit_time_error_of_one_clock`: With 32 or more clocks per bit, a sender that is one clock per bit fast or slow (about 3 %) is still received correctly.
 - `a_badly_wrong_bit_time_is_not_received_correctly`: The test above has teeth: a sender 30 % slow is NOT received correctly (wrong data or errors), so the tolerance check can fail.
+- `rx_synchroniser_is_exactly_two_flops_deep`: White-box: at every falling edge rxd_s equals the value rxd had two drives earlier, for 300 random input values. A synchroniser with a flop missing shows the value one drive earlier, which only an internal check can tell apart.
 
 **`uart_loop`**: 1 test, run at `CLKS_PER_BIT=8`; `CLKS_PER_BIT=32`
 
@@ -91,7 +92,7 @@ Every block is built and run in both languages at each of its settings: **30 sim
 - `rx_data_holds_its_value_after_the_transfer`: rx_data keeps the received word, unchanged, for as long as the master stays idle.
 - `reset_in_the_middle_of_a_transfer_returns_to_idle`: Reset during a transfer puts cs_n high, mosi low, busy low and sclk at the idle level at once, gives no done pulse, and the next transfer is correct.
 
-**`async_fifo`**: 9 tests, run at `plain synchroniser, 8 bits x 8 words, write clock 10 ns, read clock 10 ns (offset 3 ns)`; `plain synchroniser, 5 bits x 4 words, write clock 7 ns, read clock 23 ns (offset 0 ns)`; `plain synchroniser, 16 bits x 16 words, write clock 23 ns, read clock 7 ns (offset 5 ns)`; `nasty synchroniser, 8 bits x 8 words, write clock 10 ns, read clock 3 ns (offset 1 ns)`; `nasty synchroniser, 8 bits x 8 words, write clock 3 ns, read clock 10 ns (offset 1 ns)`; `nasty synchroniser, 5 bits x 4 words, write clock 13 ns, read clock 17 ns (offset 2 ns)`
+**`async_fifo`**: 11 tests, run at `plain synchroniser, 8 bits x 8 words, write clock 10 ns, read clock 10 ns (offset 3 ns)`; `plain synchroniser, 5 bits x 4 words, write clock 7 ns, read clock 23 ns (offset 0 ns)`; `plain synchroniser, 16 bits x 16 words, write clock 23 ns, read clock 7 ns (offset 5 ns)`; `nasty synchroniser, 8 bits x 8 words, write clock 10 ns, read clock 3 ns (offset 1 ns)`; `nasty synchroniser, 8 bits x 8 words, write clock 3 ns, read clock 10 ns (offset 1 ns)`; `nasty synchroniser, 5 bits x 4 words, write clock 13 ns, read clock 17 ns (offset 2 ns)`
 
 - `flags_after_reset`: After reset the FIFO reports empty and not full, and keeps doing so while nothing happens.
 - `fill_to_full_then_drain_in_order`: Writing with nothing reading fills the FIFO to exactly DEPTH words and then w_full holds it there however many more writes are attempted; draining gives back the first DEPTH words in order, and the flags end exact.
@@ -102,10 +103,12 @@ Every block is built and run in both languages at each of its settings: **30 sim
 - `every_data_bit_carries_a_one_and_a_zero`: Words with a single bit set, a single bit clear, all zeros, all ones and alternating bits all come back unchanged, so every bit of the data path is used both ways.
 - `flags_follow_within_a_few_clocks`: One word written into an empty FIFO makes r_empty go low within 5 read clocks, and one word read from a full FIFO makes w_full go low within 5 write clocks.
 - `reset_in_the_middle_discards_the_contents`: Resetting both domains while words are stored (and traffic is running) leaves the FIFO empty, not full, and with no stale word: only words written afterwards come out.
+- `pointer_crossing_takes_exactly_two_destination_clocks`: White-box, real synchroniser only: the pointer seen across the boundary equals the true pointer from exactly two destination-clock edges earlier, in both directions. A one-flop synchroniser gives one edge, and the skewed model is skipped because it breaks this rule on purpose.
+- `pointers_that_cross_change_one_bit_per_clock`: White-box: the Gray-coded pointers that cross between clock domains never change more than one bit in a single clock. Plain binary pointers change several bits at once, which a safe synchroniser model cannot show.
 
 ### Breaking the circuits on purpose
 
-`tools/mutate.py` makes 48 realistic bugs, one at a time, in each language, and runs the block's tests against each broken circuit. Of 96 broken circuits, **90 were caught** by at least one failing test and **6 survived**.
+`tools/mutate.py` makes 48 realistic bugs, one at a time, in each language, and runs the block's tests against each broken circuit. Of 96 broken circuits, **96 were caught** by at least one failing test and **0 survived**.
 
 | Block | Bug | Verilog | VHDL |
 |---|---|---|---|
@@ -126,7 +129,7 @@ Every block is built and run in both languages at each of its settings: **30 sim
 | `uart_rx` | only seven data bits are collected | caught | caught |
 | `uart_rx` | each data bit is sampled one clock earlier than the one before (a creeping bit time) | caught | caught |
 | `uart_rx` | reset does nothing in the receiver | caught | caught |
-| `uart_rx` | the two-flop input synchroniser is cut to one flop | **survived** | **survived** |
+| `uart_rx` | the two-flop input synchroniser is cut to one flop | caught | caught |
 | `spi_master` | the first bit sent in modes 0 and 2 is bit 0 instead of the top bit | caught | caught |
 | `spi_master` | cpha is ignored: every transfer uses mode 0 or 2 timing | caught | caught |
 | `spi_master` | cpol is ignored: sclk always idles low | caught | caught |
@@ -148,7 +151,7 @@ Every block is built and run in both languages at each of its settings: **30 sim
 | `async_fifo` | the empty test uses the read pointer as it is now, not as it will be after this clock | caught | caught |
 | `async_fifo` | the full test uses the write pointer as it is now, not as it will be after this clock | caught | caught |
 | `async_fifo` | plain binary pointers cross between the clocks instead of Gray-coded ones (several bits change at once) | caught | caught |
-| `async_fifo` | the same binary-pointer bug, simulated with an ordinary two-flop synchroniser | **survived** | **survived** |
+| `async_fifo` | the same binary-pointer bug, simulated with an ordinary two-flop synchroniser | caught | caught |
 | `async_fifo` | a word is stored even when the FIFO is full, overwriting unread data | caught | caught |
 | `async_fifo` | the read pointer advances on a read of an empty FIFO | caught | caught |
 | `async_fifo` | the write pointer advances on a write to a full FIFO | caught | caught |
@@ -156,13 +159,7 @@ Every block is built and run in both languages at each of its settings: **30 sim
 | `async_fifo` | reset does nothing in the write clock domain | caught | caught |
 | `async_fifo` | reset does nothing in the read clock domain | caught | caught |
 | `async_fifo` | the RAM is written at the Gray-coded address but read at the binary one | caught | caught |
-| `async_fifo` | the two-flop synchroniser is cut to one flop | **survived** | **survived** |
-
-The surviving bug ("the two-flop input synchroniser is cut to one flop") is **expected** to survive, because it cannot be detected in RTL simulation: a simulator has no metastability, so a missing synchroniser only shows up in clock-domain-crossing analysis or on hardware.
-
-The surviving bug ("the same binary-pointer bug, simulated with an ordinary two-flop synchroniser") is **expected** to survive, because it cannot be detected in RTL simulation: in a zero-delay simulation every bit of a pointer reaches the other clock at the same moment, so a binary pointer works; the bug only appears when the wires are skewed (the nasty synchroniser above) or on real hardware.
-
-The surviving bug ("the two-flop synchroniser is cut to one flop") is **expected** to survive, because it cannot be detected in RTL simulation: a simulator has no metastability, so it cannot tell one flop from two; this needs a clock-domain-crossing checker or an analysis of how long the first flop takes to settle.
+| `async_fifo` | the two-flop synchroniser is cut to one flop | caught | caught |
 
 <!-- results:end -->
 

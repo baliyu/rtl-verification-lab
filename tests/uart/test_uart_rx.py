@@ -142,3 +142,22 @@ async def a_badly_wrong_bit_time_is_not_received_correctly(dut):
         await idle(dut, CLKS)
     await idle(dut, 2 * CLKS)
     assert mon.bytes() != sent or mon.errors
+
+
+from cocotb.triggers import FallingEdge, RisingEdge  # noqa: E402
+
+
+@cocotb.test()
+async def rx_synchroniser_is_exactly_two_flops_deep(dut):
+    """White-box: at every falling edge rxd_s equals the value rxd had two drives earlier, for 300 random input values. A synchroniser with a flop missing shows the value one drive earlier, which only an internal check can tell apart."""
+    await setup(dut)
+    rng = random.Random(7)
+    driven = [1, 1]                                       # rxd has been idle high since setup
+    for n in range(300):
+        bit = rng.randrange(2)
+        dut.rxd.value = bit
+        driven.append(bit)
+        await FallingEdge(dut.clk)
+        got = int(dut.rxd_s.value)
+        assert got == driven[-3], f"drive {n}: rxd_s = {got} but rxd two drives ago was {driven[-3]}"
+        await RisingEdge(dut.clk)
